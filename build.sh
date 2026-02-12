@@ -10,3 +10,7 @@ python manage.py collectstatic --no-input
 
 # Run database migrations (Create tables in your new Cloud MySQL)
 python manage.py migrate
+
+# --- ADD THIS LINE ---
+#To create a superuser, run the following command
+python create_superuser.py
