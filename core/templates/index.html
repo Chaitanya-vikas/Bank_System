@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBM Secure Banking Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 12px; }
+        .balance-card { background: linear-gradient(135deg, #0f62fe 0%, #0043ce 100%); color: white; }
+        .status-success { color: #198038; font-weight: bold; }
+        .status-failed { color: #da1e28; font-weight: bold; }
+        .table-hover tbody tr:hover { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#">🏦 IBM Secure Banking</a>
+        <div class="d-flex">
+            <span class="navbar-text text-white me-3">
+                Welcome, <strong>{{ user.username }}</strong>
+            </span>
+            <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-5 mb-4">
+            <div class="card balance-card p-4 mb-4 text-center">
+                <p class="mb-0 opacity-75">Available Balance</p>
+                <h1 class="display-4 fw-bold">${{ account.balance }}</h1>
+            </div>
+
+            <div class="card p-4">
+                <h4 class="mb-3 text-primary">💸 Send Money</h4>
+                
+                <div class="mb-3">
+                    <label class="form-label">Receiver Username</label>
+                    <input type="text" id="receiver" class="form-control form-control-lg" placeholder="e.g. alice">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Amount ($)</label>
+                    <input type="number" id="amount" class="form-control form-control-lg" placeholder="0.00">
+                </div>
+
+                <button onclick="performTransfer()" class="btn btn-primary w-100 btn-lg">Transfer Securely</button>
+                
+                <div id="result" class="mt-3 alert" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="text-secondary">📜 Recent Activity</h4>
+                    <span class="badge bg-secondary">Last 5 Transactions</span>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Time</th>
+                                <th>Details</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in transactions %}
+                            <tr>
+                                <td class="text-muted small">{{ t.timestamp|date:"M d, H:i" }}</td>
+                                
+                                <td>
+                                    {% if t.sender == account %}
+                                        <span class="text-danger">Sent to</span> {{ t.receiver.user.username }}
+                                    {% else %}
+                                        <span class="text-success">Received from</span> {{ t.sender.user.username }}
+                                    {% endif %}
+                                </td>
+                                
+                                <td class="fw-bold">
+                                    {% if t.sender == account %} -${{ t.amount }} {% else %} +${{ t.amount }} {% endif %}
+                                </td>
+                                
+                                <td>
+                                    {% if t.status == 'SUCCESS' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success">Success</span>
+                                    {% else %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger">Failed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">
+                                    No transactions found. Start by sending money!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function performTransfer() {
+        const receiver = document.getElementById('receiver').value;
+        const amount = document.getElementById('amount').value;
+        const resultDiv = document.getElementById('result');
+
+        // Basic Validation
+        if (!receiver || !amount) {
+            showResult('warning', '⚠️ Please fill in all fields.');
+            return;
+        }
+
+        // Processing State
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'alert alert-info';
+        resultDiv.innerText = '🔄 Processing Transaction...';
+
+        try {
+            const response = await fetch('/api/transfer/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}' // Django Security Token
+                },
+                body: JSON.stringify({ 
+                    receiver_username: receiver, 
+                    amount: amount 
+                })
+            });
+
+            const data = await response.json();
+            
+            if(data.status === 'success') {
+                showResult('success', '✅ ' + data.message);
+                // Refresh page after 1.5 seconds to update balance and history
+                setTimeout(() => location.reload(), 1500); 
+            } else {
+                showResult('danger', '❌ ' + data.error);
+            }
+
+        } catch (error) {
+            showResult('danger', '⚠️ Network or Server Error');
+        }
+    }
+
+    function showResult(type, message) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.className = `alert alert-${type} mt-3`;
+        resultDiv.innerText = message;
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
