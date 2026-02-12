@@ -43,6 +43,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise MUST be here to intercept CSS requests
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -140,3 +144,6 @@ LOGIN_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# This tells Django: "Use WhiteNoise to compress and serve files"
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
